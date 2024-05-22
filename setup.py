@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'dummy_publisher_gui_bart_1'
+package_name = 'joystick_control_ras'
 
 setup(
     name=package_name,
@@ -24,7 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'demo1 = dummy_publisher_gui_bart_1.broadcastGUI:main'
+            'joystickgui = joystick_control_ras.broadcastGUI:main'
         ],
     },
 )
