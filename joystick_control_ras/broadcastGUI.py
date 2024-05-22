@@ -7,16 +7,16 @@
  bartboogmans@hotmail.com
 '''
 
+from re import T
 import sys
 from rclpy.node import Node
 from std_msgs.msg import Float32MultiArray
 import rclpy
-import math
 import os 
+import pygame
 import numpy as np
-import time
-from PyQt5.QtCore import Qt, QTimer, QPointF, QPoint
-from PyQt5.QtGui import QPixmap, QColor, QPolygonF, QPen, QBrush, QPainter, QPolygon, QIcon
+from PyQt5.QtCore import Qt, QTimer, QPoint
+from PyQt5.QtGui import QPixmap, QColor, QPen, QBrush, QPainter
 from PyQt5.QtWidgets import (
 	QApplication,
 	QLabel,
@@ -30,145 +30,27 @@ from PyQt5.QtWidgets import (
 	QGraphicsScene,
 	QLineEdit,
 	QCheckBox,
+	QSpinBox,
 )
 
 import ras_ros_core_control_modules.tools.geometry_tools as geometry_tools
 import ras_ros_core_control_modules.tools.titoneri_parameters as titoneri_parameters
+from joystick_control_ras.plot_tools import plotColorPalette, plotTree2d
+from joystick_control_ras.allocation_functions import joy2act_TN_01
 
 DRAWSCALE = 250 # pixels per meter
-
-class plotColorPalette():
-	pen_x = QPen(QColor(255,0,0),2)
-	pen_y = QPen(QColor(0,255,0),2)
-	pen_z = QPen(QColor(0,0,255),2)
-
-	RAS_TN_DB = QPen(QColor(0, 96, 186),3)
-	RAS_TN_GR = QPen(QColor(44, 171, 5),3)
-	RAS_TN_YE = QPen(QColor(235, 227, 0),3)
-	RAS_TN_PU = QPen(QColor(206, 0, 224),3)
-	RAS_TN_LB = QPen(QColor(28, 164, 255),3)
-	RAS_TN_OR = QPen(QColor(255, 149, 0),3)
-
-	default_vessel_hull = QPen(QColor(0, 0, 0),3)
-	vessel_hull_disabled = QPen(QColor(20, 20, 20),3)
-
-	thrusters = QPen(QColor(0, 0, 0),2)
-
-class plotTree2d():
-	""" Class to assist in drawing 2d objects in a tree structure. 
-		The root of the tree should not have a parent.
-	"""
-	def __init__(self, line:np.ndarray=None,parent:'plotTree2d'=None, brush:QBrush=None, pen:QPen=None, translation:np.ndarray=np.array([0.0,0.0]), rotation:float=0.0,inheritLayout:'plotTree2d'=None,name:str=None):
-		self.children = []
-		self.name = name
-		self.parent = parent
-
-		# Set default layout
-		self.line = None
-		self.brush = None
-		self.pen = QPen(QColor(0,0,0))
-
-		# Inherit layout from referenced object if given
-		if inheritLayout is not None:
-			self.line = inheritLayout.line
-			self.brush = inheritLayout.brush
-			self.pen = inheritLayout.pen
-		
-		# Set specified layout
-		if line is not None:
-			self.line = line
-		if brush is not None:
-			self.brush = brush
-		if pen is not None:
-			self.pen = pen
-
-		# Set translation and rotation
-		self.translation = translation
-		self.rotation = rotation
-
-		if parent is not None:
-			parent.addChild(self)
-
-	def addChild(self, child:'plotTree2d'):
-		# Check if the object added is not the root of itself
-		if self.getRoot() is child:
-			raise ValueError("Cannot add a root to child of itself to avoid recursive plotting")
-		else:
-			# chech if child is not already a child
-			if child in self.children:
-				raise ValueError("Cannot add a child that is already a child")
-			else:
-				# Check if child has a parent
-				if child.parent is not None:
-					# Remove child from old parent
-					if child in child.parent.children:
-						child.parent.children.remove(child)
-				self.children.append(child)
-				child.parent = self
-
-	def getRoot(self):
-		if self.parent is None:
-			return self
-		else:
-			return self.parent.getRoot()
-
-	def draw(self, painter:QPainter):
-		# Draw self
-		if self.line is not None:
-
-			# Set the pen and brush
-			painter.setPen(self.pen)
-			if self.brush is not None:
-				painter.setBrush(self.brush)
-			else:
-				painter.setBrush(QBrush(Qt.NoBrush))
-
-			# Rotate the hull outline, translate and scale to pixel coordinates
-			outline = (np.matmul(rotation_matrix_2d(self.getGlobalRotation()),self.line)+self.getGlobalTranslation()[:, np.newaxis])*DRAWSCALE
-
-			# make a list of QPoint objects and translate to center
-			outline_qpoint = []
-			for i in range(len(outline[0])):
-				point = QPoint(outline[0][i],outline[1][i])
-				outline_qpoint.append(point)
-			
-			# Draw the outline
-			painter.drawPolygon(QPolygon(outline_qpoint))
-
-		# Draw children (if any)
-		for child in self.children:
-			child.draw(painter)
-
-	def getGlobalTranslation(self):
-		if self.parent is not None:
-			# My coordinate system is expressed in my parent's local coordinate system
-			return self.parent.getGlobalTranslation() + np.matmul(rotation_matrix_2d(self.parent.getGlobalRotation()),self.translation)
-		else:
-			# I am root, thus my coordinate system is expressed in the global coordinate system
-			return self.translation
-	
-	def getGlobalRotation(self):
-		if self.parent is not None:
-			# My coordinate system is expressed in my parent's local coordinate system
-			return self.parent.getGlobalRotation() + self.rotation
-		else:
-			# I am root, thus my coordinate system is expressed in the global coordinate system
-			return self.rotation
-
-def rotation_matrix_2d(theta):
-	""" Returns a 2D rotation matrix. """
-	return np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
 
 class GuiNode(Node):
 	""" Manages ROS2 communication."""
 
 	def __init__(self,parent_,pub_frequency=10.0):
 		self.parent = parent_
-		super().__init__('manual_control_gui_node')
+		super().__init__('joystick_gui_python_ras')
 		self.pub_actuation = None
 		self.subscriber1 = None
 		self.timer_actuation = self.create_timer(1.0/pub_frequency, self.timer_callback1)
 		self.num_msgs_received=0
+		
 
 	def timer_callback1(self):
 		# If there is a publisher
@@ -203,7 +85,7 @@ class Vesselplotter():
 
 		self.vessel_rotation = -np.pi/2
 		
-		self.hullplotter = plotTree2d(line=self.vessel_outline,rotation=float(self.vessel_rotation),name='hull',pen=plotColorPalette.vessel_hull_disabled,brush=QBrush(QColor(110, 110, 110)))
+		self.hullplotter = plotTree2d(line=self.vessel_outline,rotation=float(self.vessel_rotation),name='hull',pen=plotColorPalette.vessel_hull_disabled,brush=QBrush(QColor(110, 110, 110)),drawscale_=DRAWSCALE)
 
 		self.thrusterSBplotter = plotTree2d(line=self.thruster_outlines[0],translation=self.thruster_positions[0],rotation=float(thruster_angle0[0]),parent=self.hullplotter,name='thrusterSB',pen=plotColorPalette.thrusters,brush=QBrush(QColor(100, 100, 100)))
 		self.thrusterPSplotter = plotTree2d(line=self.thruster_outlines[1],translation=self.thruster_positions[1],rotation=float(thruster_angle0[1]),parent=self.hullplotter,name='thrusterPS',pen=plotColorPalette.thrusters,brush=QBrush(QColor(100, 100, 100)))
@@ -244,8 +126,10 @@ class Window(QMainWindow):
 	def __init__(self, parent=None):
 		super().__init__(parent)
 		self.clicksCount = 0
+		self.joystick = None
 		self.setupUi()
 		self.vesselplotter = Vesselplotter(self)
+		
 		
 		rclpy.init(args=None)
 		self.node = GuiNode(self)
@@ -260,6 +144,10 @@ class Window(QMainWindow):
 		self.drawTimer.setInterval(50) # 50 ms = 20 Hz
 		self.drawTimer.timeout.connect(self.drawTimedCallback)
 		self.drawTimer.start()
+
+		
+		pygame.init()
+		pygame.joystick.init()
 
 		self.pen = QPen(QColor(0,0,0))					  # set lineColor
 		self.pen.setWidth(3)											# set lineWidth
@@ -286,7 +174,26 @@ class Window(QMainWindow):
 			self.vesselplotter.hullplotter.pen = plotColorPalette.default_vessel_hull
 
 	def drawTimedCallback(self):
+		# if the joystick button is on, run read_joystick
+		if self.joysticktoggle.checkState() == Qt.Checked:
+			self.read_joystick()
+
+		# Update the display
 		self.update()
+	
+	def read_joystick(self):
+		"""
+		Updates the sliders to the joystick values.
+		"""
+		if self.joystick != None:
+			pygame.event.pump()
+			joystick_values = joy2act_TN_01(self.joystick)
+			
+			# Set the sliders to the joystick values
+			self.slider_rpm_SB.setValue(int(joystick_values[0]))
+			self.slider_rpm_PS.setValue(int(joystick_values[1]))
+			self.slider_angle_SB.setValue(int(joystick_values[2]))
+			self.slider_angle_PS.setValue(int(joystick_values[3]))
 	
 	def paintEvent(self, event):
 		painter = QPainter(self)
@@ -323,6 +230,7 @@ class Window(QMainWindow):
 			self.slider_angle_SB.setEnabled(False)
 			self.slider_angle_PS.setEnabled(False)
 			self.slider_bow.setEnabled(False)
+			self.connectJoystick()
 		else:
 			print("Joystick control is off")
 			# Joystick control is off
@@ -331,7 +239,26 @@ class Window(QMainWindow):
 			self.slider_angle_SB.setEnabled(True)
 			self.slider_angle_PS.setEnabled(True)
 			self.slider_bow.setEnabled(True)
+			self.disconnectJoystick()
 
+	def connectJoystick(self):
+		# only connect if joystick toggle is on and the start button has been pressed
+		if (self.joysticktoggle.checkState() == Qt.Checked) and (self.btnStart.text() != "Start"):
+			if self.joystick != None:
+				self.disconnectJoystick()
+
+			self.joystick = pygame.joystick.Joystick(self.joystick_spinner.value())
+			self.joystick.init()
+			self.joystick_spinner.setDisabled(True)
+			print("Joystick connected")
+	
+	def disconnectJoystick(self):
+		if self.joystick != None:
+			self.joystick.quit()
+			self.joystick = None
+			self.joystick_spinner.setDisabled(False)
+			print("Joystick disconnected")
+			
 	def setupUi(self):
 		self.setWindowTitle("ROS2 manual control interface")
 		self.resize(450, 535)
@@ -449,7 +376,10 @@ class Window(QMainWindow):
 		self.btnStart.clicked.connect(self.startBtnClicked)
 		self.joysticktoggle = QCheckBox("Joystick", self)
 		self.joysticktoggle.stateChanged.connect(self.joysticktoggle_changed_by_user)
+		self.joysticktoggle.setChecked(True)
 		self.IDlabel = QLabel("Vessel ID:", self)
+		self.joystick_spinner = QSpinBox()
+		self.joystick_spinner.setRange(0, 4)
 
 		# Make notes and logo section components
 		self.statuslabel = QLabel("", self)
@@ -487,6 +417,7 @@ class Window(QMainWindow):
 		layout_vesselIDsection.addWidget(self.vesselIDField)
 		layout_vesselIDsection.addWidget(self.btnStart)
 		layout_vesselIDsection.addWidget(self.joysticktoggle)
+		layout_vesselIDsection.addWidget(self.joystick_spinner)
 		layout_bottomhalf.addLayout(layout_vesselIDsection)
 		layout_notes_and_logo = QHBoxLayout() # Layout for status label and logo
 		layout_notes_and_logo.addWidget(self.statuslabel)
@@ -498,8 +429,10 @@ class Window(QMainWindow):
 		""" Toggles between on and off state when clicked."""
 		if self.btnStart.text() == "Start":
 			self.startROS()
+			self.connectJoystick()
 		else:
 			self.stopROS()
+			self.disconnectJoystick()
 
 	def startROS(self):
 		self.btnStart.setText("Stop")
