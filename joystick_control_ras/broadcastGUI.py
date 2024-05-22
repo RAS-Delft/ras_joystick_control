@@ -37,6 +37,7 @@ import ras_ros_core_control_modules.tools.geometry_tools as geometry_tools
 import ras_ros_core_control_modules.tools.titoneri_parameters as titoneri_parameters
 from joystick_control_ras.plot_tools import plotColorPalette, plotTree2d
 from joystick_control_ras.allocation_functions import joy2act_TN_01
+from sensor_msgs.msg import JointState
 
 DRAWSCALE = 250 # pixels per meter
 
@@ -55,15 +56,20 @@ class GuiNode(Node):
 	def timer_callback1(self):
 		# If there is a publisher
 		if self.pub_actuation:
-			msg = Float32MultiArray()
-			msg.data = [float(self.parent.slider_rpm_SB.value()), float(self.parent.slider_rpm_PS.value()), float(self.parent.slider_angle_SB.value()), float(self.parent.slider_angle_PS.value()), float(self.parent.slider_bow.value())]
+			msg = JointState()
+			msg.header.stamp = self.get_clock().now().to_msg()
+			msg.name = ['SB_aft_thruster_propeller','PS_aft_thruster_propeller','BOW_thruster_propeller','SB_aft_thruster_joint','PS_aft_thruster_joint']
+			msg.velocity = [float(self.parent.slider_rpm_SB.value()), float(self.parent.slider_rpm_PS.value()), float(self.parent.slider_bow.value()),0.0,0.0]
+			msg.position = [0.0,0.0,0,0, self.parent.slider_angle_SB.value(), self.parent.slider_angle_PS.value()]
+			msg.effort = []
+			
 			self.pub_actuation.publish(msg)
 		
 	def subscriber_callback1(self, msg):
 		self.num_msgs_received+=1
 
 	def startActuationBroadcast(self, vesselID):
-		self.pub_actuation= self.create_publisher(Float32MultiArray, vesselID + '/reference/actuation', 10)
+		self.pub_actuation= self.create_publisher(JointState, vesselID + '/reference/actuation_prio', 10)
 
 	def stopActuationBroadcast(self):
 		self.destroy_publisher(self.pub_actuation)
@@ -188,12 +194,17 @@ class Window(QMainWindow):
 		if self.joystick != None:
 			pygame.event.pump()
 			joystick_values = joy2act_TN_01(self.joystick)
+			print(joystick_values)
 			
 			# Set the sliders to the joystick values
 			self.slider_rpm_SB.setValue(int(joystick_values[0]))
 			self.slider_rpm_PS.setValue(int(joystick_values[1]))
-			self.slider_angle_SB.setValue(int(joystick_values[2]))
-			self.slider_angle_PS.setValue(int(joystick_values[3]))
+
+			self.slider_bow.setValue(int(joystick_values[2]*100.0))
+
+			# The joystick values are in radians, but the sliders are in degrees
+			self.slider_angle_SB.setValue(int(np.degrees(joystick_values[3])))
+			self.slider_angle_PS.setValue(int(np.degrees(joystick_values[4])))
 	
 	def paintEvent(self, event):
 		painter = QPainter(self)
