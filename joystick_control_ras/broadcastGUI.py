@@ -60,7 +60,7 @@ class GuiNode(Node):
 			msg.header.stamp = self.get_clock().now().to_msg()
 			msg.name = ['SB_aft_thruster_propeller','PS_aft_thruster_propeller','BOW_thruster_propeller','SB_aft_thruster_joint','PS_aft_thruster_joint']
 			msg.velocity = [float(self.parent.slider_rpm_SB.value()), float(self.parent.slider_rpm_PS.value()), float(self.parent.slider_bow.value()),0.0,0.0]
-			msg.position = [0.0,0.0,0,0, self.parent.slider_angle_SB.value(), self.parent.slider_angle_PS.value()]
+			msg.position = [0.0,0.0,0,0, np.radians(self.parent.slider_angle_SB.value()), np.radians(self.parent.slider_angle_PS.value())]
 			msg.effort = []
 			
 			self.pub_actuation.publish(msg)
