@@ -52,7 +52,6 @@ class GuiNode(Node):
 		self.timer_actuation = self.create_timer(1.0/pub_frequency, self.timer_callback1)
 		self.num_msgs_received=0
 		
-
 	def timer_callback1(self):
 		# If there is a publisher
 		if self.pub_actuation:
@@ -129,35 +128,51 @@ class Vesselplotter():
 		self.hullplotter.draw(painter)
 
 class Window(QMainWindow):
+	""" Main part of the GUI.
+		- Contains all the elements of the GUI.
+		- Contains the ros2 node object, responsible for the ROS2 communication.
+		- Contains the joystick object, responsible for reading the joystick.
+
+		Main loops start at this class. 
+		- The spinROSTimerCallback calls to run ros events.
+		- The drawTimedCallback calls to update the display.
+	"""
+
 	def __init__(self, parent=None):
 		super().__init__(parent)
 		self.clicksCount = 0
+
+		# Initialize the joystick
+		pygame.init()
+		pygame.joystick.init()
 		self.joystick = None
+
+		# Initialize the GUI componentss
 		self.setupUi()
 		self.vesselplotter = Vesselplotter(self)
 		
-		
+		# Set up ROS components
 		rclpy.init(args=None)
 		self.node = GuiNode(self)
 	
+		# Set up event loops for ros
 		self.spinROSTimer = QTimer()
 		self.spinROSTimer.setInterval(1) # 1 ms = 1000 Hz (the minimum is 1ms)
-		# Note that the total maximum amount of ros events that can be processed per second is limited by the spinROSTimer interval.
+		# Note that the total maximum amount of ros events that can 
+		# be processed per second is limited by the spinROSTimer interval.
 		self.spinROSTimer.timeout.connect(self.spinROSTimerCallback)
 		self.spinROSTimer.start()
-		
+
+		# Set up event loop for drawing
 		self.drawTimer = QTimer()
 		self.drawTimer.setInterval(50) # 50 ms = 20 Hz
 		self.drawTimer.timeout.connect(self.drawTimedCallback)
 		self.drawTimer.start()
 
-		
-		pygame.init()
-		pygame.joystick.init()
-
-		self.pen = QPen(QColor(0,0,0))					  # set lineColor
-		self.pen.setWidth(3)											# set lineWidth
-		self.brush = QBrush(QColor(255,255,255,255))		# set fillColor  
+		# Initialize drawing parameters
+		self.pen = QPen(QColor(0,0,0))					# lineColor
+		self.pen.setWidth(3)							# lineWidth
+		self.brush = QBrush(QColor(255,255,255,255))	# fillColor  
 
 	def keyPressEvent(self, event):
 		""" check if enter has been pressed while in the vessel ID field.
