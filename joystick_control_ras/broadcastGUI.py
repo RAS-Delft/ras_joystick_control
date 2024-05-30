@@ -71,8 +71,9 @@ class GuiNode(Node):
 		self.pub_actuation= self.create_publisher(JointState, vesselID + '/reference/actuation_prio', 10)
 
 	def stopActuationBroadcast(self):
-		self.destroy_publisher(self.pub_actuation)
-		self.pub_actuation = None
+		if self.pub_actuation:
+			self.destroy_publisher(self.pub_actuation)
+			self.pub_actuation = None
 
 class Vesselplotter():
 	"""Some tools that help drawing a vessel and n actuators on a QGraphicsScene."""
