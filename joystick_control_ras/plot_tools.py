@@ -19,16 +19,23 @@ class plotColorPalette():
 
 	thrusters = QPen(QColor(0, 0, 0),2)
 
-
 class plotTree2d():
 	""" Class to assist in drawing 2d objects in a tree structure. 
 		The root of the tree should not have a parent.
 	"""
-	def __init__(self, line:np.ndarray=None,parent:'plotTree2d'=None, brush:QBrush=None, pen:QPen=None, translation:np.ndarray=np.array([0.0,0.0]), rotation:float=0.0,inheritLayout:'plotTree2d'=None,name:str=None, drawscale_:float=1.0):
+	def __init__(self, line:np.ndarray=None,parent:'plotTree2d'=None, brush:QBrush=None, pen:QPen=None, translation:np.ndarray=np.array([0.0,0.0]), rotation:float=0.0,inheritLayout:'plotTree2d'=None,name:str=None, drawscale_:float=None):
 		self.children = []
 		self.name = name
 		self.parent = parent
-		self.drawscale = drawscale_
+
+		# Set drawscale. Inherit from parent if not specified
+		if drawscale_ is None:
+			if parent is None:
+				self.drawscale = 1.0
+			else:
+				self.drawscale = parent.drawscale
+		else:
+			self.drawscale = drawscale_
 
 		# Set default layout
 		self.line = None
@@ -93,15 +100,12 @@ class plotTree2d():
 			# Rotate the hull outline, translate and scale to pixel coordinates
 			outline = (np.matmul(rotation_matrix_2d(self.getGlobalRotation()),self.line)+self.getGlobalTranslation()[:, np.newaxis])*self.drawscale
 
-			# print the type of outline [0][0]
-			#print("outline type: ", type(outline[0][0]), "outline: ", outline[0][0])
-			#rounded_int = np.round(outline[0][0])
 			# make a list of QPoint objects and translate to center
 			outline_qpoint = []
 			for i in range(len(outline[0])):
 				point = QPoint(int(np.round(outline[0][i])), int(np.round(outline[1][i])))
 				outline_qpoint.append(point)
-			
+
 			# Draw the outline
 			painter.drawPolygon(QPolygon(outline_qpoint))
 

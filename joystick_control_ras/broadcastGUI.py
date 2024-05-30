@@ -36,13 +36,13 @@ from PyQt5.QtWidgets import (
 import os
 from ament_index_python.packages import get_package_share_directory
 
-import ras_ros_core_control_modules.tools.geometry_tools as geometry_tools
 import ras_ros_core_control_modules.tools.titoneri_parameters as titoneri_parameters
-from joystick_control_ras.plot_tools import plotColorPalette, plotTree2d
+from joystick_control_ras.plot_tools import plotColorPalette, plotTree2d, make_arrow
 from joystick_control_ras.allocation_functions import joy2act_TN_01
 from sensor_msgs.msg import JointState
 
-DRAWSCALE = 250 # pixels per meter
+DRAWSCALE_OBJECTS = 250 # pixels per meter
+DRAWSCALE_FORCES = 0.55 # meter per Newton
 
 class GuiNode(Node):
     """ Manages ROS2 communication."""
