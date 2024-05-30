@@ -10,7 +10,6 @@ import signal
 from re import T
 import sys
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray
 import rclpy
 import os 
 import pygame
@@ -52,10 +51,10 @@ class GuiNode(Node):
         super().__init__('joystick_gui_python_ras')
         self.pub_actuation = None
         self.subscriber1 = None
-        self.timer_actuation = self.create_timer(1.0/pub_frequency, self.timer_callback1)
+        self.timer_actuation = self.create_timer(1.0/pub_frequency, self.timer_callback_publish_actuation)
         self.num_msgs_received=0
         
-    def timer_callback1(self):
+    def timer_callback_publish_actuation(self):
         # If there is a publisher
         if self.pub_actuation:
             msg = JointState()
@@ -67,9 +66,6 @@ class GuiNode(Node):
             
             self.pub_actuation.publish(msg)
         
-    def subscriber_callback1(self, msg):
-        self.num_msgs_received+=1
-
     def startActuationBroadcast(self, vesselID):
         self.pub_actuation= self.create_publisher(JointState, vesselID + '/reference/actuation_prio', 10)
 
@@ -94,12 +90,12 @@ class Vesselplotter():
 
         self.vessel_rotation = -np.pi/2
         
-        self.hullplotter = plotTree2d(line=self.vessel_outline,rotation=float(self.vessel_rotation),name='hull',pen=plotColorPalette.vessel_hull_disabled,brush=QBrush(QColor(110, 110, 110)),drawscale_=DRAWSCALE)
+        self.hullplotter = plotTree2d(line=self.vessel_outline,rotation=float(self.vessel_rotation),name='hull',pen=plotColorPalette.vessel_hull_disabled,brush=QBrush(QColor(110, 110, 110)),drawscale_=DRAWSCALE_OBJECTS)
 
+        self.bowthrusterplotter = plotTree2d(line=self.thruster_outlines[2],translation=self.thruster_positions[2],rotation=float(thruster_angle0[2]),parent=self.hullplotter,name='bowthruster',pen=plotColorPalette.thrusters,brush=QBrush(QColor(100, 100, 100)))
         self.thrusterSBplotter = plotTree2d(line=self.thruster_outlines[0],translation=self.thruster_positions[0],rotation=float(thruster_angle0[0]),parent=self.hullplotter,name='thrusterSB',pen=plotColorPalette.thrusters,brush=QBrush(QColor(100, 100, 100)))
         self.thrusterPSplotter = plotTree2d(line=self.thruster_outlines[1],translation=self.thruster_positions[1],rotation=float(thruster_angle0[1]),parent=self.hullplotter,name='thrusterPS',pen=plotColorPalette.thrusters,brush=QBrush(QColor(100, 100, 100)))
-        self.bowthrusterplotter = plotTree2d(line=self.thruster_outlines[2],translation=self.thruster_positions[2],rotation=float(thruster_angle0[2]),parent=self.hullplotter,name='bowthruster',pen=plotColorPalette.thrusters,brush=QBrush(QColor(100, 100, 100)))
-
+        
         self.hullXaxisplotter = plotTree2d(line=np.array([[0,0.1],[0,0]]),parent=self.hullplotter,pen=plotColorPalette.pen_x,name='hullXaxis')
         self.hullYaxisplotter = plotTree2d(line=np.array([[0,0],[0,0.1]]),parent=self.hullplotter,pen=plotColorPalette.pen_y,name='hullYaxis')
 
@@ -199,7 +195,7 @@ class Window(QMainWindow):
 
         # Set up event loop for check changing icon
         self.iconTimer = QTimer()
-        self.iconTimer.setInterval(1000)
+        self.iconTimer.setInterval(500)
         self.iconTimer.timeout.connect(self.loop_icons)
         self.iconTimer.start()
         self.active_icon_ticker = 2
@@ -228,7 +224,7 @@ class Window(QMainWindow):
 
     def resizeEvent(self, event):
         self.vesselplotter.set_draw_boundaries()
-        vesselplotcenter = np.array([(self.vesselplotter.draw_boundaries[0][0]+self.vesselplotter.draw_boundaries[0][1])/2,(self.vesselplotter.draw_boundaries[1][0]+self.vesselplotter.draw_boundaries[1][1])/2])/DRAWSCALE
+        vesselplotcenter = np.array([(self.vesselplotter.draw_boundaries[0][0]+self.vesselplotter.draw_boundaries[0][1])/2,(self.vesselplotter.draw_boundaries[1][0]+self.vesselplotter.draw_boundaries[1][1])/2])/DRAWSCALE_OBJECTS
         self.vesselplotter.hullplotter.translation = vesselplotcenter
         QMainWindow.resizeEvent(self, event)
 
