@@ -132,3 +132,27 @@ class plotTree2d():
 def rotation_matrix_2d(theta):
 	""" Returns a 2D rotation matrix. """
 	return np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+
+def make_arrow(length,head_length,head_width):
+	""" Returns a 2D arrow line. """
+	# If the length is zero, return a zero length arrow
+	if length == 0:
+		return np.array([[0, 0], [0, 0]])
+	
+	# if the head length is zero, return a line
+	if head_length == 0:
+		return np.array([[0, length], [0, 0]])
+	
+	# if the head is more than a third of the abs(length), scale it down
+	if head_length > abs(length)/3:
+		scalefactor = abs(length)/(3*head_length)
+		head_length = head_length*scalefactor
+		head_width = head_width*scalefactor
+
+	# mirror head if length is negative
+	if length < 0:
+		head_length = -head_length
+
+	arrow = np.array([	[0, length, length-head_length, length, length-head_length, length],
+					 	[0,	0,      head_width/2, 0, -head_width/2,0] ])
+	return arrow

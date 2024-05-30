@@ -110,7 +110,21 @@ class Vesselplotter():
 
         self.draw_boundary_offsets = [[50,-50],[36,-110]] # [[dx_min, dx_max],[dy_min, dy_max]] away from left, right, top and bottom of the window
         self.set_draw_boundaries()
-    
+        
+        self.thrustToForce = [lambda v: ((1.925e-5)*v*v*v+(1.061e-2)*v), # output: Newton, Input: RPS
+                            lambda v: ((1.925e-5)*v*v*v+(1.061e-2)*v), # output: Newton, Input: RPS
+                            lambda PWM_value: PWM_value*3.575] # output: Newton, Input is normalized pwm [-1:1]
+        
+        self.forceThrusterSBPlotter = plotTree2d(parent=self.thrusterSBplotter,pen=plotColorPalette.pen_x,name='forceThrusterSB')
+        self.forceThrusterPSPlotter = plotTree2d(parent=self.thrusterPSplotter,pen=plotColorPalette.pen_x,name='forceThrusterPS')
+        self.forceBowThrusterPlotter = plotTree2d(parent=self.bowthrusterplotter,pen=plotColorPalette.pen_x,name='forceBowThruster')
+        
+    def set_force_lines(self,forces:np.ndarray):
+        """  Set the forces on the thrusters. """
+        self.forceThrusterSBPlotter.line = make_arrow(forces[0]*DRAWSCALE_FORCES,0.10,0.04)
+        self.forceThrusterPSPlotter.line =  make_arrow(forces[1]*DRAWSCALE_FORCES,0.10,0.04)
+        self.forceBowThrusterPlotter.line = make_arrow(forces[2]*DRAWSCALE_FORCES,0.10,0.04)
+        
     def set_draw_boundaries(self):
         """ Sets the boundaries of the drawing area. """
         self.draw_boundaries = [[self.draw_boundary_offsets[0][0],self.target.width() + self.draw_boundary_offsets[0][1]],[self.draw_boundary_offsets[1][0],self.target.height()+self.draw_boundary_offsets[1][1]]]
@@ -128,6 +142,10 @@ class Vesselplotter():
         self.thrusterSBplotter.rotation = np.radians(a[0])
         self.thrusterPSplotter.rotation = np.radians(a[1])
 
+        # Calculate forces on the thrusters
+        forces = np.array([self.thrustToForce[0](u[0]/60.0),self.thrustToForce[1](u[1]/60.0),self.thrustToForce[2](u[2]/100)])
+        self.set_force_lines(forces)
+        
         # plot the vessel
         self.hullplotter.draw(painter)
 
