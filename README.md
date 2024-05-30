@@ -1,10 +1,14 @@
 # Joystick Control User Interface
-Starts up a Graphical User Interface that allows streaming of vessel commands in a user-friendly manner for human operation. 
+Starts up a Graphical User Interface that allows streaming of vessel commands for human control. 
 Currently hardcoded to work for TitoNeri actuation structure
+
+<p align="center" width="100%">
+    <img width="33%" src="https://github.com/RAS-Delft/ras_joystick_control/assets/5917472/2161ca47-cb0b-45f9-b8db-09980b44ceff">
+</p>
 
 | Inputs | Outputs |
 |--------|----------|
-| Logitech Extreme 3D PRO (usb)| ros2 Jointstate reference actuation on /<vessel_id>/reference/actuation_prio |
+| Logitech Extreme 3D PRO (usb)| ros2 [Jointstate](https://docs.ros.org/en/melodic/api/sensor_msgs/html/msg/JointState.html) reference on /<vessel_id>/reference/actuation_prio |
 
 
 ## Use
@@ -13,9 +17,4 @@ Clone this repository in ros2_ws/src. Build ros2 workspace. Source workspace. St
 ros2 run joystick_control_ras joystickgui
 ```
 
-Plug in a joystick on usb and tick the "joystick" option if you want to use that. Spinner is in case of multiple joysticks per computer, but default with one device is 0. 
-
-<p align="center" width="100%">
-    <img width="33%" src="https://github.com/RAS-Delft/ras_joystick_control/assets/5917472/5363056e-cbde-4ccf-a5f5-42048acc1554">
-</p>
-
+Default joystick number is 0 if you only have 1 plugged in.
