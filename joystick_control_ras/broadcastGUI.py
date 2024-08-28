@@ -31,6 +31,8 @@ from PyQt5.QtWidgets import (
     QCheckBox,
     QSpinBox,
 )
+from rclpy.qos import QoSProfile
+from rclpy.qos import QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 
 import os
 from ament_index_python.packages import get_package_share_directory
@@ -67,7 +69,13 @@ class GuiNode(Node):
             self.pub_actuation.publish(msg)
         
     def startActuationBroadcast(self, vesselID):
-        self.pub_actuation= self.create_publisher(JointState, vesselID + '/reference/actuation_prio', 10)
+        custom_qos_profile = QoSProfile(
+    		reliability=QoSReliabilityPolicy.BEST_EFFORT,
+    		history=QoSHistoryPolicy.KEEP_LAST,
+    		depth=1,
+    		durability=QoSDurabilityPolicy.VOLATILE
+		)
+        self.pub_actuation= self.create_publisher(JointState, vesselID + '/reference/actuation_prio', custom_qos_profile)
 
     def stopActuationBroadcast(self):
         if self.pub_actuation:
